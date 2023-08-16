@@ -1,0 +1,20 @@
+Package: mrio
+Type: Package
+Title: ADB MRIO Tools
+Version: 0.1.0
+Authors@R: person("Kenneth Anthony Luigi Susmerano", "Reyes", 
+    email = "kenneth.rejes@gmail.com", role = c("aut", "cre"))
+Description: Tools for working with the Asian Development Bank (ADB) 
+    Multiregional Input-Output (MRIO) tables, a time series of intercountry 
+    input-output tables available for up to 72 countries and disaggregated into 
+    35 sectors. 
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 2.10)
+Imports:
+    dplyr,
+    cli,
+    rlang
+RoxygenNote: 7.2.3
