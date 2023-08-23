@@ -10,9 +10,9 @@ Data frame with columns
 \item{c_ind, c_name}{Index and name in MRIO.}
 \item{c_name_short, c_abv}{More compact alternatives to sector names.}
 \item{c15_ind, c15_name}{Correspondence of 35 sectors to 15-sector
-  aggregation.}
+aggregation.}
 \item{c5_ind, c5_name}{Correspondence of 35 sectors to 5-sector
-  aggregation.}
+aggregation.}
 }
 }
 \source{

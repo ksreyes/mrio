@@ -1,4 +1,4 @@
-#' Perform basic integrity checks on MRIO Excel file
+#' Perform basic integrity checks on MRIO Excel files
 #'
 #' Given directory `path`, loads all Excel files with "MRIO" (case-insensitive)
 #' in the file name and examines them for anomalies.
@@ -7,8 +7,8 @@
 #' that the MRIO table must follow the standard Excel format.
 #'
 #' @param path Directory of files to check.
-#' @param precision Number of decimal places to consider in checking whether
-#'     a table is balanced.
+#' @param precision Number of decimal places to consider in checking whether a
+#'   table is balanced.
 #'
 #' @importFrom rlang .data
 #'

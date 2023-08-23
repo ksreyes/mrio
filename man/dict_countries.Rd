@@ -8,26 +8,31 @@
 Data frame with columns
 \describe{
 \item{iso_num, iso_a2, iso_a3}{Numeric, two-letter, and three-letter country
-  codes according to the International Standard for country codes (ISO 3166).
-  Retrieved from the ISO Online Browsing Platform as of August 2023.}
+codes according to the International Standard for country codes (ISO 3166).}
 \item{un_name}{Country name according to the United Nations.}
 \item{adb_code, adb_name}{Country three-letter codes and names according
-  to the Asian Development Bank.}
+to the Asian Development Bank.}
 \item{mrio_ind, mrio_ind62, mrio_code, mrio_name}{Country indexing, codes,
-  and names according to the ADB Multiregional Input-Output Tables.
-  `mrio_ind` is the index for the 72-country version while `mrio_ind62` is
-  for the 62-country version.}
+and names according to the ADB Multiregional Input-Output Tables.
+\code{mrio_ind} is the index for the 72-country version while \code{mrio_ind62} is
+for the 62-country version.}
 \item{wb_name, wb_region}{Country names and regional classifications
-  according to the World Bank.}
+according to the World Bank.}
 \item{code, name}{Consolidated country codes and names based on the ADB and
-  MRIO conventions and, if missing, the ISO and UN conventions.}
+MRIO conventions and, if missing, the ISO and UN conventions.}
 \item{region}{Consolidated regional classification that is essentially the
-  World Bank classification with the inclusion of Taipei,China.}
+World Bank classification with the inclusion of Taipei,China.}
 \item{continent}{Country continent; manually assigned.}
 }
 }
 \source{
-Asian Development Bank MRIO Team.
+\itemize{
+\item ISO Online Browsing Platform. https://www.iso.org/obp/ui.
+\item United Nations M49 Standard. https://unstats.un.org/unsd/methodology/m49.
+\item World Bank Indicators. https://data.worldbank.org.
+\item Asian Development Bank \emph{Handbook of Style and Usage}, July 2022. https://www.adb.org/documents/handbook-style-and-usage.
+\item Asian Development Bank MRIO Team.
+}
 }
 \usage{
 dict_countries

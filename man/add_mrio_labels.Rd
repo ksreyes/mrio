@@ -19,15 +19,15 @@ add_mrio_labels(.data, .col, from, to, replace = FALSE)
 adds target as a new column next to the reference column.}
 }
 \value{
-An object of the same type as `.data`.
+An object of the same type as \code{.data}.
 }
 \description{
 Convert between various labels for countries and sectors in the
 Multiregional Input-Output (MRIO) tables.
 }
 \details{
-See ?dict_countries and ?dict_sectors for valid field types to
-  convert between.
+See \code{?dict_countries} and \code{?dict_sectors} for valid field types to
+convert between.
 }
 \examples{
 df <- data.frame(

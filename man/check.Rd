@@ -2,18 +2,18 @@
 % Please edit documentation in R/check.R
 \name{check}
 \alias{check}
-\title{Perform basic integrity checks on MRIO Excel file}
+\title{Perform basic integrity checks on MRIO Excel files}
 \usage{
 check(path, precision = 8)
 }
 \arguments{
 \item{path}{Directory of files to check.}
 
-\item{precision}{Number of decimal places to consider in checking whether
-a table is balanced.}
+\item{precision}{Number of decimal places to consider in checking whether a
+table is balanced.}
 }
 \description{
-Given directory `path`, loads all Excel files with "MRIO" (case-insensitive)
+Given directory \code{path}, loads all Excel files with "MRIO" (case-insensitive)
 in the file name and examines them for anomalies.
 }
 \details{

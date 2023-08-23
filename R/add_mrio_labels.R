@@ -11,7 +11,7 @@
 #'   adds target as a new column next to the reference column.
 #'
 #' @return An object of the same type as `.data`.
-#' @details See ?dict_countries and ?dict_sectors for valid field types to
+#' @details See `?dict_countries` and `?dict_sectors` for valid field types to
 #'   convert between.
 #'
 #' @examples
