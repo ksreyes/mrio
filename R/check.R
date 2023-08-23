@@ -6,7 +6,7 @@
 #' The number of countries in the MRIO is automatically detected. However, note
 #' that the MRIO table must follow the standard Excel format.
 #'
-#' @param path Directory of files to check.
+#' @param path Path to file or directory of files.
 #' @param precision Number of decimal places to consider in checking whether a
 #'   table is balanced.
 #'
@@ -22,7 +22,11 @@ check <- function(path, precision = 8) {
     span.check = list(color = "darkgreen")
   ))
 
-  files <- list.files(path, pattern = "^[^~].*(MRIO|mrio|Mrio).*(xls|xlsx)$")
+  if (file.info(path)$isdir) {
+    files <- list.files(path, pattern = "^[^~].*(MRIO|mrio|Mrio).*(xls|xlsx)$")
+  } else {
+    files <- path
+  }
 
   for (file in files) {
 
@@ -31,7 +35,7 @@ check <- function(path, precision = 8) {
 
     cli::cli_progress_message("Loading file...")
 
-    mrio <- paste0(path, file) |>
+    mrio <- file.path(path, file) |>
       readxl::read_excel(
         range = readxl::cell_limits(c(8, 5), c(NA, NA)),
         col_names = FALSE,
