@@ -9,17 +9,14 @@ check(path, precision = 8)
 \arguments{
 \item{path}{Directory of files to check.}
 
-\item{precision}{Largest difference tolerated for equality.}
+\item{precision}{Number of decimal places to consider in checking whether
+a table is balanced.}
 }
 \description{
-Given a directory `path`, this will load all Excel files with "MRIO"
-(case-insensitive) in the file name and examine them for the following
-anomalies:
- \enumerate{
-   \item Blank cells.
-   \item Negative values for inputs and consumption.
-   \item
- }
+Given directory `path`, loads all Excel files with "MRIO" (case-insensitive)
+in the file name and examines them for anomalies.
+}
+\details{
 The number of countries in the MRIO is automatically detected. However, note
 that the MRIO table must follow the standard Excel format.
 }

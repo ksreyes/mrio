@@ -1,18 +1,14 @@
 #' Perform basic integrity checks on MRIO Excel file
 #'
-#' Given a directory `path`, this will load all Excel files with "MRIO"
-#' (case-insensitive) in the file name and examine them for the following
-#' anomalies:
-#'  \enumerate{
-#'    \item Blank cells.
-#'    \item Negative values for inputs and consumption.
-#'    \item
-#'  }
+#' Given directory `path`, loads all Excel files with "MRIO" (case-insensitive)
+#' in the file name and examines them for anomalies.
+#'
 #' The number of countries in the MRIO is automatically detected. However, note
 #' that the MRIO table must follow the standard Excel format.
 #'
 #' @param path Directory of files to check.
-#' @param precision Largest difference tolerated for equality.
+#' @param precision Number of decimal places to consider in checking whether
+#'     a table is balanced.
 #'
 #' @importFrom rlang .data
 #'
@@ -79,6 +75,7 @@ check <- function(path, precision = 8) {
 
     cli::cli_text("")
     cli::cli_text("{.emph Table is balanced?}")
+    Sys.sleep(delay)
 
     diff <- xrow - xcol
     hits <- which(abs(diff) > threshold)
@@ -104,6 +101,7 @@ check <- function(path, precision = 8) {
 
     cli::cli_text("")
     cli::cli_text("{.emph Cells have expected values?}")
+    Sys.sleep(delay)
 
     # Blank cells
     hits <- c()
@@ -185,46 +183,43 @@ check <- function(path, precision = 8) {
 
     cli::cli_text("")
     cli::cli_text("{.emph Aggregates have expected values?}")
+    Sys.sleep(delay)
 
     # Value added
-    warnings <- c()
     hits <- which(va < 0)
     if (length(hits) == 0) {
       cli::cli_alert_success(" {.check No negative value added.}")
     } else {
+      cli::cli_bullets(c("!" = " Negative value added"))
+      Sys.sleep(delay)
       for (h in hits) {
         entity <- mrio_entity(s = h %/% N + 1, i = h %% N, g = G)
-        warnings <- c(
-          warnings,
-          "*" = paste0(" ", entity, ": ", va[h])
-        )
+        cli::cli_bullets(c("*" = " {entity}: {va[h]}"))
+        Sys.sleep(delay)
       }
-      cli::cli_bullets(c("!" = " Negative value added", warnings))
     }
-    Sys.sleep(delay)
 
     # Exports
-    warnings <- c()
+    running_hits <- 0
     for (col in 1:G) {
+
       hits <- which((E[, col] < 0))
+      running_hits <- running_hits + length(hits)
+
       if (length(hits) > 0) {
+        cli::cli_bullets(c("!" = " Negative exports"))
+        Sys.sleep(delay)
+
         for (h in hits) {
           exporter <- mrio_entity(s = h %/% N + 1, i = h %% N, g = G)
           partner <- mrio_entity(s = col, g = G)
-          warnings <- c(
-            warnings,
-            "*" = paste0(" ", exporter, " -> ", partner , ": ", E[h, col])
-          )
+          cli::cli_bullets(c("*" = " {exporter} -> {partner}: {E[h, col]}"))
+          Sys.sleep(delay)
         }
       }
     }
-    if (length(warnings) == 0) {
-      cli::cli_alert_success(" {.check No negative exports.}")
-    } else {
-      cli::cli_bullets(c("!" = " Negative exports", warnings))
-    }
+    if (running_hits == 0) cli::cli_alert_success(" {.check No negative exports.}")
 
-    rm(dpa, E, f, file, G, hits, mrio, N, pnr, s, va, vabp, xcol, xrow, y, Y, Y_big, Yf, Z, Zf)
   }
 
   cli::cli_text("")
