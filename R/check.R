@@ -15,11 +15,12 @@
 #' @export
 check <- function(path, precision = 8) {
 
-  threshold <- as.numeric(sprintf("1e%d", -precision))
+  threshold <- as.numeric(glue::glue("1e{-precision}"))
   delay <- .25
   cli::cli_div(theme = list(
     span.header = list(color = "cyan"),
-    span.check = list(color = "darkgreen")
+    span.check = list(color = "darkgreen"),
+    span.warn = list(color = "darkgoldenrod4")
   ))
 
   # Get files
@@ -35,7 +36,7 @@ check <- function(path, precision = 8) {
 
     cli::cli_text("")
     cli::cli_rule(left = "Checks on {.header {basename(file)}}")
-    cli::cli_progress_message("Loading file...")
+    cli::cli_progress_message("Reading file...")
 
     mrio <- readxl::read_excel(
         file,
@@ -45,8 +46,6 @@ check <- function(path, precision = 8) {
       ) |>
       as.matrix() |>
       suppressMessages()
-
-    cli::cli_progress_done()
 
     if (nrow(mrio) < 2205 | ncol(mrio) < 2205) {
       cli::cli_bullets(c("x" = " This file is not an MRIO table or it does not follow the standard MRIO format."))
@@ -78,6 +77,8 @@ check <- function(path, precision = 8) {
     }
     E <- Zf + Yf
 
+    cli::cli_progress_done()
+
     # Balanced table ----------------------------------------------------------
 
     cli::cli_text("")
@@ -97,10 +98,10 @@ check <- function(path, precision = 8) {
       for (h in 1:length(hits)) {
         warnings <- c(
           warnings,
-          "*" = sprintf(" Difference in output between %s and %s is %.2f", row_hits[h], col_hits[h], abs(diff[hits[h]]))
+          " " = glue::glue(" Difference in output between {row_hits[h]} and {col_hits[h]} is {abs(diff[hits[h]])}")
         )
       }
-      cli::cli_bullets(c("!" = " Table may be unbalanced.", warnings))
+      cli::cli_bullets(c("!" = " {.warn Table may be unbalanced.}", warnings))
     }
     Sys.sleep(delay)
 
@@ -196,8 +197,9 @@ check <- function(path, precision = 8) {
     hits <- which(va < 0)
     if (length(hits) == 0) {
       cli::cli_alert_success(" {.check No negative value added.}")
+      Sys.sleep(delay)
     } else {
-      cli::cli_bullets(c("!" = " Negative value added"))
+      cli::cli_bullets(c("!" = " {.warn Negative value added}"))
       Sys.sleep(delay)
       for (h in hits) {
         entity <- mrio_entity(s = h %/% N + 1, i = h %% N, g = G)
@@ -213,7 +215,7 @@ check <- function(path, precision = 8) {
       hits <- which((E[, col] < 0))
 
       if (length(hits) > 0) {
-        if (running_hits == 0) cli::cli_bullets(c("!" = " Negative exports"))
+        if (running_hits == 0) cli::cli_bullets(c("!" = " {.warn Negative exports}"))
         running_hits <- running_hits + length(hits)
         Sys.sleep(delay)
 
@@ -226,6 +228,7 @@ check <- function(path, precision = 8) {
       }
     }
     if (running_hits == 0) cli::cli_alert_success(" {.check No negative exports.}")
+    Sys.sleep(delay)
   }
 
   cli::cli_text("")
@@ -249,7 +252,7 @@ mrio_entity <- function(s, i = NULL, g) {
     dict_countries1 <- dict_countries |>
       dplyr::distinct(.data$mrio_ind62, .keep_all = TRUE) |>
       dplyr::filter(!is.na(.data$mrio_ind62)) |>
-      dplyr::rename(ind = "mrio_ind")
+      dplyr::rename(ind = "mrio_ind62")
   }
 
   country <- dict_countries1$code[dict_countries1$ind == s]
@@ -262,7 +265,7 @@ print_result <- function(hits, success, fail) {
     return(cli::cli_alert_success(" {.check {success}.}"))
   } else {
     hits <- paste(hits, collapse = ", ")
-    warnings <- paste0(" {fail}: ", hits)
+    warnings <- paste0(" {.warn {fail}: }", hits)
     return(cli::cli_bullets(c("!" = warnings)))
   }
 }
