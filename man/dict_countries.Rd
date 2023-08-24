@@ -30,7 +30,7 @@ World Bank classification with the inclusion of Taipei,China.}
 \item ISO Online Browsing Platform. https://www.iso.org/obp/ui.
 \item United Nations M49 Standard. https://unstats.un.org/unsd/methodology/m49.
 \item World Bank Indicators. https://data.worldbank.org.
-\item Asian Development Bank \emph{Handbook of Style and Usage}, July 2022. https://www.adb.org/documents/handbook-style-and-usage.
+\item Asian Development Bank, \emph{Handbook of Style and Usage}, July 2022. https://www.adb.org/documents/handbook-style-and-usage.
 \item Asian Development Bank MRIO Team.
 }
 }

@@ -7,7 +7,7 @@
 check(path, precision = 8)
 }
 \arguments{
-\item{path}{Directory of files to check.}
+\item{path}{Path to file or directory of files.}
 
 \item{precision}{Number of decimal places to consider in checking whether a
 table is balanced.}
