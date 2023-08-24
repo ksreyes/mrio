@@ -4,13 +4,16 @@
 \alias{check}
 \title{Perform basic integrity checks on MRIO Excel files}
 \usage{
-check(path, precision = 8)
+check(path, precision = 8, export = TRUE)
 }
 \arguments{
 \item{path}{Path to file or directory of files.}
 
 \item{precision}{Number of decimal places to consider in checking whether a
 table is balanced.}
+
+\item{export}{If \code{TRUE}, saves results in an Excel file in the same directory
+as \code{path}.}
 }
 \description{
 Given directory \code{path}, loads all Excel files with "MRIO" (case-insensitive)
