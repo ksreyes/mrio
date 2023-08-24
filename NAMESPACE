@@ -2,5 +2,12 @@
 
 export(add_mrio_labels)
 export(check)
+export(get_country_code)
+export(get_country_ind)
+export(get_country_name)
+export(get_sector_code)
+export(get_sector_ind)
+export(get_sector_name)
+export(get_sector_shortname)
 importFrom(rlang,":=")
 importFrom(rlang,.data)
