@@ -22,8 +22,10 @@ check <- function(path, precision = 8) {
     span.check = list(color = "darkgreen")
   ))
 
+  # Get files
   if (file.info(path)$isdir) {
     files <- list.files(path, pattern = "^[^~].*(MRIO|mrio|Mrio).*(xls|xlsx)$")
+    files <- file.path(path, file)
   } else {
     files <- path
   }
@@ -31,18 +33,18 @@ check <- function(path, precision = 8) {
   for (file in files) {
 
     cli::cli_text("")
-    cli::cli_rule(left = "Checks on {.header {file}}")
+    cli::cli_rule(left = "Checks on {.header {basename(file)}}")
 
     cli::cli_progress_message("Loading file...")
 
-    mrio <- file.path(path, file) |>
-      readxl::read_excel(
+    mrio <- readxl::read_excel(
+        file,
         range = readxl::cell_limits(c(8, 5), c(NA, NA)),
         col_names = FALSE,
         progress = FALSE
       ) |>
-      suppressMessages() |>
-      as.matrix()
+      as.matrix() |>
+      suppressMessages()
 
     cli::cli_progress_done()
 
@@ -53,7 +55,8 @@ check <- function(path, precision = 8) {
 
     N <- 35
     f <- 5
-    G <- (nrow(mrio) - 8) / N
+    G <- (ncol(mrio) - 1) / (N + f)
+    mrio <- mrio[1:(G*N + 8), ]
 
     xrow <- mrio[nrow(mrio), 1:(G*N)]
     xcol <- mrio[1:(G*N), ncol(mrio)]
@@ -198,7 +201,7 @@ check <- function(path, precision = 8) {
       Sys.sleep(delay)
       for (h in hits) {
         entity <- mrio_entity(s = h %/% N + 1, i = h %% N, g = G)
-        cli::cli_bullets(c("*" = " {entity}: {va[h]}"))
+        cli::cli_bullets(c(" " = "{entity}: {va[h]}"))
         Sys.sleep(delay)
       }
     }
@@ -208,22 +211,21 @@ check <- function(path, precision = 8) {
     for (col in 1:G) {
 
       hits <- which((E[, col] < 0))
-      running_hits <- running_hits + length(hits)
 
       if (length(hits) > 0) {
-        cli::cli_bullets(c("!" = " Negative exports"))
+        if (running_hits == 0) cli::cli_bullets(c("!" = " Negative exports"))
+        running_hits <- running_hits + length(hits)
         Sys.sleep(delay)
 
         for (h in hits) {
           exporter <- mrio_entity(s = h %/% N + 1, i = h %% N, g = G)
           partner <- mrio_entity(s = col, g = G)
-          cli::cli_bullets(c("*" = " {exporter} -> {partner}: {E[h, col]}"))
+          cli::cli_bullets(c(" " = "{exporter} => {partner}: {E[h, col]}"))
           Sys.sleep(delay)
         }
       }
     }
     if (running_hits == 0) cli::cli_alert_success(" {.check No negative exports.}")
-
   }
 
   cli::cli_text("")
