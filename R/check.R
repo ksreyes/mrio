@@ -25,16 +25,16 @@ check <- function(path, precision = 8) {
   # Get files
   if (file.info(path)$isdir) {
     files <- list.files(path, pattern = "^[^~].*(MRIO|mrio|Mrio).*(xls|xlsx)$")
-    files <- file.path(path, file)
   } else {
     files <- path
   }
 
   for (file in files) {
 
+    if (file.info(path)$isdir) file <- file.path(path, file)
+
     cli::cli_text("")
     cli::cli_rule(left = "Checks on {.header {basename(file)}}")
-
     cli::cli_progress_message("Loading file...")
 
     mrio <- readxl::read_excel(
