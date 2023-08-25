@@ -7,19 +7,33 @@
 check(path, precision = 8, export = TRUE)
 }
 \arguments{
-\item{path}{Path to file or directory of files.}
+\item{path}{Path to file or directory. Files must be in Excel and have "MRIO"
+(case insensitive) in the name; function ignores all other files in the
+directory.}
 
-\item{precision}{Number of decimal places to consider in checking whether a
-table is balanced.}
+\item{precision}{Number of decimal places to consider in checking zero
+values.}
 
 \item{export}{If \code{TRUE}, saves results in an Excel file in the same directory
 as \code{path}.}
 }
 \description{
-Given directory \code{path}, loads all Excel files with "MRIO" (case-insensitive)
-in the file name and examines them for anomalies.
+Checks MRIO tables for anomalies. Optionally exports results in
+an Excel file. Automatically detects MRIO version (62 vs 72 economies).
+
+List of checks performed:
+\enumerate{
+\item Non-numeric cells.
+\item Blank cells.
+\item Negative inputs.
+\item Negative consumption items.
+\item Negative value added at basic prices.
+\item Negative direct purchases abroad by residents.
+\item Positive purchases on the domestic territory by non-residents.
+\item Discrepancy between row and column output.
+\item Negative gross value added (GVA).
+\item Negative exports.
+\item GVA = 0 with inputs > 0.
+\item GVA = 0 with exports > 0.
 }
-\details{
-The number of countries in the MRIO is automatically detected. However, note
-that the MRIO table must follow the standard Excel format.
 }
