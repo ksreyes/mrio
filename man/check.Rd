@@ -2,13 +2,13 @@
 % Please edit documentation in R/check.R
 \name{check}
 \alias{check}
-\title{Perform basic integrity checks on MRIO Excel files}
+\title{Perform basic integrity checks on MRIO table}
 \usage{
 check(path, precision = 8, export = TRUE)
 }
 \arguments{
 \item{path}{Path to file or directory. Files must be in Excel and have "MRIO"
-(case insensitive) in the name; function ignores all other files in the
+(case insensitive) in the name. Function ignores all other files in the
 directory.}
 
 \item{precision}{Number of decimal places to consider in checking zero
@@ -27,12 +27,14 @@ List of checks performed:
 \item Blank cells.
 \item Negative inputs.
 \item Negative consumption items.
-\item Negative value added at basic prices.
+\item Negative gross value added (GVA).
 \item Negative direct purchases abroad by residents.
 \item Positive purchases on the domestic territory by non-residents.
 \item Discrepancy between row and column output.
-\item Negative gross value added (GVA).
-\item Negative exports.
+\item Negative sum of value added terms.
+\item Negative final sales.
+\item Negative total final sales.
+\item Negative total exports.
 \item GVA = 0 with inputs > 0.
 \item GVA = 0 with exports > 0.
 }

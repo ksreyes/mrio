@@ -1,4 +1,4 @@
-#' Perform basic integrity checks on MRIO Excel files
+#' Perform basic integrity checks on MRIO table
 #'
 #' @description
 #' Checks MRIO tables for anomalies. Optionally exports results in
@@ -9,17 +9,19 @@
 #' 1. Blank cells.
 #' 1. Negative inputs.
 #' 1. Negative consumption items.
-#' 1. Negative value added at basic prices.
+#' 1. Negative gross value added (GVA).
 #' 1. Negative direct purchases abroad by residents.
 #' 1. Positive purchases on the domestic territory by non-residents.
 #' 1. Discrepancy between row and column output.
-#' 1. Negative gross value added (GVA).
-#' 1. Negative exports.
+#' 1. Negative sum of value added terms.
+#' 1. Negative final sales.
+#' 1. Negative total final sales.
+#' 1. Negative total exports.
 #' 1. GVA = 0 with inputs > 0.
 #' 1. GVA = 0 with exports > 0.
 #'
 #' @param path Path to file or directory. Files must be in Excel and have "MRIO"
-#'   (case insensitive) in the name; function ignores all other files in the
+#'   (case insensitive) in the name. Function ignores all other files in the
 #'   directory.
 #' @param precision Number of decimal places to consider in checking zero
 #'   values.
@@ -29,14 +31,14 @@
 #' @importFrom rlang .data
 #'
 #' @export
-check <- function(path, precision = 8, export = TRUE) {
+check <- function(path, precision = 8, export = TRUE, limit = 10) {
 
   # Set up
   savedir <- ifelse(file.info(path)$isdir, path, dirname(path))
   threshold <- as.numeric(glue::glue("1e{-precision}"))
-  delay <- .2
-  reports = openxlsx::createWorkbook()
-
+  delay <- .1
+  exceed_limit_message <- c(" " = " {.warn {nrow(hits)} detected, printing first {limit}:}")
+  report_cols <- c("type", "cell", "row_entity", "col_entity", "value")
   cli::cli_div(theme = list(
     span.header = list(color = "cyan"),
     span.check = list(color = "darkgreen"),
@@ -48,6 +50,8 @@ check <- function(path, precision = 8, export = TRUE) {
     fgFill = "#007DB7",
     textDecoration = "bold"
   )
+
+  reports = openxlsx::createWorkbook()
 
   # Preamble
   timestamp <- print_timestamp()
@@ -63,6 +67,8 @@ check <- function(path, precision = 8, export = TRUE) {
     ' `export = TRUE`: results will be saved in "{.header {savedir}}".',
     " `export = FALSE`: results will not be saved."
   )))
+  Sys.sleep(delay)
+  cli::cli_bullets(c("i" = " `limit = {limit}`: first {limit} flagged entries will be printed."))
   Sys.sleep(delay)
 
   # Get files
@@ -103,6 +109,32 @@ check <- function(path, precision = 8, export = TRUE) {
     G <- (nrow - 8) / N
     mrio <- mrio[1:nrow, 2:(1 + G*N + G*f + 1)] |> as.matrix()
 
+    xrow <- mrio[nrow(mrio), 1:(G*N)]
+    xcol <- mrio[1:(G*N), ncol(mrio)]
+    diff <- xrow - xcol
+
+    vasum <- colSums(mrio[(G*N + 2):(G*N + 7), 1:(G*N)])
+
+    dpa <- mrio[G*N + 4, (G*N + 1):(G*N + 1 + G*f)]
+    pnr <- mrio[G*N + 5, (G*N + 1):(G*N + 1 + G*f)]
+    gva <- mrio[G*N + 6, 1:(G*N)]
+
+    Y_big <- mrio[1:(G*N), (G*N + 1):(ncol(mrio) - 1)]
+    Y <- Y_big %*% kronecker(diag(G), rep(1, f))
+    y <- rowSums(Y)
+
+    Z <- mrio[1:(G * N), 1:(G * N)]
+    zuse <- colSums(Z)
+
+    Zf <- Z %*% kronecker(diag(G), rep(1, N))
+    Yf <- Y
+    for (s in 1:G) {
+      Zf[(s-1)*N + 1:N, s] <- 0
+      Yf[(s-1)*N + 1:N, s] <- 0
+    }
+    E <- Zf + Yf
+    e <- rowSums(E)
+
     test1 <- G %% 1 == 0
     test2 <- nrow(mrio) >= 2205
     test3 <- ncol(mrio) >= 2205
@@ -122,35 +154,38 @@ check <- function(path, precision = 8, export = TRUE) {
     # [*] Non-numeric cells ----
 
     hits <- data.frame(row = c(), col = c(), value = c())
-    excel_cells <- c()
 
     for (col in 1:ncol(mrio)) {
-      blank <- is.na(mrio[, col])
-      char <- is.na(as.numeric(mrio[, col]) |> suppressWarnings())
-      hit <- which(!blank & char)
-      if (length(hit) > 0) hits <- rbind(hits, data.frame(row = hit, col = col, value = mrio[hit, col]))
-    }
+      isblank <- is.na(mrio[, col])
+      ischar <- is.na(as.numeric(mrio[, col]) |> suppressWarnings())
+      hit <- which(!isblank & ischar)
+      if (length(hit) > 0) {
+        hits <- rbind(hits, data.frame(row = hit, col = col, value = mrio[hit, col]))
+      }}
+
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check All cells are numeric.}")
       Sys.sleep(delay)
+
     } else {
+
       cli::cli_bullets(c("!" = " {.warn Non-numeric cells}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + 4), 7 + hits$row[hit])
-        excel_cells <- c(excel_cells, excel_cell)
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}}"))
-        Sys.sleep(delay)
-      }
 
       hits$type <- "Blank cells"
-      hits$cell <- excel_cells
+      hits$cell <- paste0(excelcol(hits$col + 4), 7 + hits$row)
       hits$row_entity <- NA
       hits$col_entity <- NA
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
-      )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
 
       cli::cli_bullets(c("x" = " Presence of non-numeric cells makes other checks unreliable. Aborting."))
       next
@@ -159,249 +194,224 @@ check <- function(path, precision = 8, export = TRUE) {
     # [*] Blank cells ----
 
     hits <- data.frame(row = c(), col = c(), value = c())
-    excel_cells <- c()
 
     for (col in 1:ncol(mrio)) {
       hit <- which(is.na(mrio[, col]))
-      if (length(hit) > 0) hits <- rbind(hits, data.frame(row = hit, col = col, value = mrio[hit, col]))
-    }
+      if (length(hit) > 0) {
+        hits <- rbind(hits, data.frame(row = hit, col = col, value = mrio[hit, col]))
+      }}
+
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No blank cells.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Blank cells}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + 4), 7 + hits$row[hit])
-        excel_cells <- c(excel_cells, excel_cell)
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}}"))
-        Sys.sleep(delay)
-      }
 
       hits$type <- "Blank cells"
-      hits$cell <- excel_cells
+      hits$cell <- paste0(excelcol(hits$col + 4), 7 + hits$row)
       hits$row_entity <- NA
       hits$col_entity <- NA
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
-      )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
     # [*] Negative inputs ----
 
     hits <- data.frame(row = c(), col = c(), value = c())
-    excel_cells <- c()
-    row_entities <- c()
-    col_entities <- c()
 
     for (col in 1:(G*N)) {
       hit <- which((mrio[1:(G*N), col] < -threshold))
-      if (length(hit) > 0) hits <- rbind(hits, data.frame(row = hit, col = col, value = mrio[hit, col]))
-    }
+      if (length(hit) > 0) {
+        hits <- rbind(hits, data.frame(row = hit, col = col, value = mrio[hit, col]))
+      }}
+
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No negative inputs.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Negative inputs}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + 4), 7 + hits$row[hit])
-        row_entity = mrio_entity(
-          s = hits$row[hit] %/% N + 1,
-          i = ifelse(hits$row[hit] %% N == 0, N, hits$row[hit] %% N),
-          g = G
-        )
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% N + 1,
-          i = ifelse(hits$row[hit] %% N == 0, N, hits$row[hit] %% N),
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        row_entities <- c(row_entities, row_entity)
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}} {row_entity} => {col_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$type <- "Negative inputs"
-      hits$cell <- excel_cells
-      hits$row_entity <- row_entities
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$cell <- paste0(excelcol(hits$col + 4), 7 + hits$row)
+      hits$row_entity <- mrio_entity(
+        s = hits$row %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
       )
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
+      )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}} {hits$row_entity[hit]} => {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
     # [*] Negative consumption ----
 
     hits <- data.frame(row = c(), col = c(), value = c())
-    excel_cells <- c()
-    row_entities <- c()
-    col_entities <- c()
     col_index <- G*N + subset(1:(G*f), 1:(G*f) %% 5 != 0)
-
     for (col in col_index) {
       hit <- which((mrio[1:(G*N), col] < -threshold))
-      if (length(hit) > 0) hits <- rbind(hits, data.frame(row = hit, col = col - G*N, value = mrio[hit, col]))
-    }
+      if (length(hit) > 0) {
+        hits <- rbind(hits, data.frame(row = hit, col = col - G*N, value = mrio[hit, col]))
+      }}
+
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No negative consumption items.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Negative consumption items}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + G*N + 4), 7 + hits$row[hit])
-        row_entity = mrio_entity(
-          s = hits$row[hit] %/% N + 1,
-          i = ifelse(hits$row[hit] %% N == 0, N, hits$row[hit] %% N),
-          g = G
-        )
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% f + 1,
-          f = hits$col[hit] %% f,
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        row_entities <- c(row_entities, row_entity)
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}} {row_entity} => {col_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$"type" <- "Negative consumption"
-      hits$cell <- excel_cells
-      hits$row_entity <- row_entities
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$cell <- paste0(excelcol(hits$col + G*N + 4), 7 + hits$row)
+      hits$row_entity <- mrio_entity(
+        s = hits$row %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
       )
-    }
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% f + 1,
+        f = hits$col %% f,
+        g = G
+      )
 
-    # [*] Negative value added at basic prices ----
-
-    vabp <- mrio[G*N + 6, 1:(G*N)]
-    hits <- data.frame(
-      col = which(vabp < -threshold),
-      value = vabp[which(vabp < -threshold)]
-    )
-    excel_cells <- c()
-    col_entities <- c()
-
-    if (nrow(hits) == 0) {
-      cli::cli_alert_success(" {.check No negative value added at basic prices.}")
-      Sys.sleep(delay)
-    } else {
-      cli::cli_bullets(c("!" = " {.warn Negative value added at basic prices}"))
-      Sys.sleep(delay)
-
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + 4), 7 + G*N + 6)
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% N + 1,
-          i = ifelse(hits$col[hit] %% N == 0, N, hits$col[hit] %% N),
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}} {col_entity}: {hits$value[hit]}"))
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
         Sys.sleep(delay)
       }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}} {hits$row_entity[hit]} => {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
+    }
 
-      hits$"type" <- "Negative value added at basic prices"
-      hits$cell <- excel_cells
+    # [*] Negative GVA ----
+
+    hits <- data.frame(
+      col = which(gva < -threshold),
+      value = gva[which(gva < -threshold)]
+    )
+
+    if (nrow(hits) == 0) {
+      cli::cli_alert_success(" {.check No negative GVA.}")
+      Sys.sleep(delay)
+
+    } else {
+      cli::cli_bullets(c("!" = " {.warn Negative GVA}"))
+      Sys.sleep(delay)
+
+      hits$"type" <- "Negative GVA"
+      hits$cell <- paste0(excelcol(hits$col + 4), 7 + G*N + 6)
       hits$row_entity <- NA
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% N + 1,
+        i = ifelse(hits$col %% N == 0, N, hits$col %% N),
+        g = G
       )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}} {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
     # [*] Negative direct purchases abroad ----
 
-    dpa <- mrio[G*N + 4, (G*N + 1):(G*N + 1 + G*f)]
     hits <- data.frame(
       col = which(dpa < -threshold),
       value = dpa[which(dpa < -threshold)]
     )
-    excel_cells <- c()
-    col_entities <- c()
 
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No negative direct purchases abroad.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Negative direct purchases abroad}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + 4), 7 + G*N + 4)
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% N + 1,
-          i = ifelse(hits$col[hit] %% N == 0, N, hits$col[hit] %% N),
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}} {col_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$"type" <- "Negative direct purchases abroad"
-      hits$cell <- excel_cells
+      hits$cell <- paste0(excelcol(hits$col + 4), 7 + G*N + 4)
       hits$row_entity <- NA
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% N + 1,
+        i = ifelse(hits$col %% N == 0, N, hits$col %% N),
+        g = G
       )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}} {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
     # [*] Positive purchases by non-residents ----
 
-    pnr <- mrio[G*N + 5, (G*N + 1):(G*N + 1 + G*f)]
     hits <- data.frame(
       col = which(pnr > threshold),
       value = pnr[which(pnr > threshold)]
     )
-    excel_cells <- c()
-    col_entities <- c()
 
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No positive purchases by non-residents.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Positive purchases by non-residents}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        excel_cell <- paste0(excelcol(hits$col[hit] + 4), 7 + G*N + 5)
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% N + 1,
-          i = ifelse(hits$col[hit] %% N == 0, N, hits$col[hit] %% N),
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}} {col_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$"type" <- "Positive purchases by non-residents"
-      hits$cell <- excel_cells
+      hits$cell <- paste0(excelcol(hits$col + 4), 7 + G*N + 5)
       hits$row_entity <- NA
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% N + 1,
+        i = ifelse(hits$col %% N == 0, N, hits$col %% N),
+        g = G
       )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}} {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
     # Balanced table ----------------------------------------------------------
@@ -410,55 +420,44 @@ check <- function(path, precision = 8, export = TRUE) {
     cli::cli_text("{.emph Table is balanced?}")
     Sys.sleep(delay)
 
-    xrow <- mrio[nrow(mrio), 1:(G*N)]
-    xcol <- mrio[1:(G*N), ncol(mrio)]
-    diff <- xrow - xcol
     hits <- data.frame(
       row = which(abs(diff) > threshold),
       col = which(abs(diff) > threshold),
       value = abs(diff[which(abs(diff) > threshold)])
     )
-    excel_cells <- c()
-    row_entities <- c()
-    col_entities <- c()
 
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No row/column discrepancies in outputs.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Unbalanced row/column outputs}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-
-        excel_cell_row <- paste0(excelcol(hits$col[hit] + 4), 7 + nrow(mrio))
-        excel_cell_col <- paste0(excelcol(4 + ncol(mrio)), 7 + hits$row[hit])
-        excel_cell <- paste0(excel_cell_row, ", ", excel_cell_col)
-        row_entity = mrio_entity(
-          s = hits$row[hit] %/% N + 1,
-          i = ifelse(hits$row[hit] %% N == 0, N, hits$row[hit] %% N),
-          g = G
-        )
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% N + 1,
-          i = ifelse(hits$row[hit] %% N == 0, N, hits$row[hit] %% N),
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        row_entities <- c(row_entities, row_entity)
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{.cell {excel_cell}} {row_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$type <- "Unbalanced outputs"
-      hits$cell <- excel_cells
-      hits$row_entity <- row_entities
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      excel_cell_row <- paste0(excelcol(hits$col + 4), 7 + nrow(mrio))
+      excel_cell_col <- paste0(excelcol(4 + ncol(mrio)), 7 + hits$row)
+      hits$cell <- paste0(excel_cell_row, ", ", excel_cell_col)
+      hits$row_entity <- mrio_entity(
+        s = hits$row %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
       )
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
+      )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{.cell {hits$cell[hit]}} {hits$row_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
     # Aggregates --------------------------------------------------------------
@@ -467,174 +466,209 @@ check <- function(path, precision = 8, export = TRUE) {
     cli::cli_text("{.emph Aggregates have expected values?}")
     Sys.sleep(delay)
 
-    # [*] Value added ----
+    # [*] Negative sum of VA terms ----
 
-    va <- colSums(mrio[(G*N + 2):(G*N + 7), 1:(G*N)])
     hits <- data.frame(
-      col = which(va < -threshold),
-      value = va[which(va < -threshold)]
+      col = which(vasum < -threshold),
+      value = vasum[which(vasum < -threshold)]
     )
-    col_entities <- c()
 
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No negative value added.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn Negative value added}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        col_entity = mrio_entity(
-          s = hits$col[hit] %/% N + 1,
-          i = ifelse(hits$col[hit] %% N == 0, N, hits$col[hit] %% N),
-          g = G
-        )
-        col_entities <- c(col_entities, col_entity)
 
-        cli::cli_bullets(c(" " = "{col_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
-
-      hits$"type" <- "Negative value added"
+      hits$"type" <- "Negative sum of VA terms"
       hits$cell <- NA
       hits$row_entity <- NA
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$col_entity <- mrio_entity(
+        s = hits$col %/% N + 1,
+        i = ifelse(hits$col %% N == 0, N, hits$col %% N),
+        g = G
       )
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
 
-    # [*] Exports ----
-
-    Z <- mrio[1:(G * N), 1:(G * N)]
-    Y_big <- mrio[1:(G*N), (G*N + 1):(ncol(mrio) - 1)]
-    Y <- Y_big %*% kronecker(diag(G), rep(1, f))
-    y <- rowSums(Y)
-
-    Zf <- Z %*% kronecker(diag(G), rep(1, N))
-    Yf <- Y
-    for (s in 1:G) {
-      Zf[(s-1)*N + 1:N, s] <- 0
-      Yf[(s-1)*N + 1:N, s] <- 0
-    }
-    E <- Zf + Yf
+    # [*] Negative final sales ----
 
     hits <- data.frame(row = c(), col = c(), value = c())
-    row_entities <- c()
-    col_entities <- c()
+    for (col in 1:G) {
+      hit <- which((Y[, col] < -threshold))
+      if (length(hit) > 0) hits <- rbind(hits, data.frame(row = hit, col = col, value = Y[hit, col]))
+    }
 
+    if (nrow(hits) == 0) {
+      cli::cli_alert_success(" {.check No negative final sales.}")
+      Sys.sleep(delay)
+
+    } else {
+      cli::cli_bullets(c("!" = " {.warn Negative final sales}"))
+      Sys.sleep(delay)
+
+      hits$type <- "Negative final sales"
+      hits$cell <- NA
+      hits$row_entity <- mrio_entity(
+        s = hits$row %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
+      )
+      hits$col_entity <- mrio_entity(s = hits$col, g = G)
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{hits$row_entity[hit]} => {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
+    }
+
+    # [*] Negative total final sales ----
+
+    hits <- data.frame(
+      row = which(y < -threshold),
+      value = y[which(y < -threshold)]
+    )
+
+    if (nrow(hits) == 0) {
+      cli::cli_alert_success(" {.check No negative total final sales.}")
+      Sys.sleep(delay)
+
+    } else {
+      cli::cli_bullets(c("!" = " {.warn Negative total final sales}"))
+      Sys.sleep(delay)
+
+      hits$type <- "Negative total final sales"
+      hits$cell <- NA
+      hits$row_entity <- mrio_entity(
+        s = hits$row %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
+      )
+      hits$col_entity <- NA
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{hits$row_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
+    }
+
+    # [*] Negative total exports ----
+
+    hits <- data.frame(row = c(), col = c(), value = c())
     for (col in 1:G) {
       hit <- which((E[, col] < -threshold))
       if (length(hit) > 0) hits <- rbind(hits, data.frame(row = hit, col = col, value = E[hit, col]))
     }
-    if (nrow(hits) == 0) {
-      cli::cli_alert_success(" {.check No negative exports.}")
-      Sys.sleep(delay)
-    } else {
-      cli::cli_bullets(c("!" = " {.warn Negative exports}"))
-      Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        row_entity = mrio_entity(
-          s = hits$row[hit] %/% N + 1,
-          i = ifelse(hits$row[hit] %% N == 0, N, hits$row[hit] %% N),
-          g = G
-        )
-        col_entity = mrio_entity(
-          s = hits$col[hit],
-          g = G
-        )
-        excel_cells <- c(excel_cells, excel_cell)
-        row_entities <- c(row_entities, row_entity)
-        col_entities <- c(col_entities, col_entity)
 
-        cli::cli_bullets(c(" " = "{row_entity} => {col_entity}: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
+    if (nrow(hits) == 0) {
+      cli::cli_alert_success(" {.check No negative total exports.}")
+      Sys.sleep(delay)
+
+    } else {
+      cli::cli_bullets(c("!" = " {.warn Negative total exports}"))
+      Sys.sleep(delay)
 
       hits$type <- "Negative exports"
       hits$cell <- NA
-      hits$row_entity <- row_entities
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
+      hits$row_entity <- mrio_entity(
+        s = hits$row %/% N + 1,
+        i = ifelse(hits$row %% N == 0, N, hits$row %% N),
+        g = G
       )
+      hits$col_entity <- mrio_entity(s = hits$col, g = G)
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:min(c(limit, nrow(hits)))) {
+        cli::cli_bullets(c(" " = "{hits$row_entity[hit]} => {hits$col_entity[hit]}: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
-    Sys.sleep(delay)
 
     # [*] GVA = 0, inputs > 0 ----
 
-    zuse <- colSums(Z)
     hits <- data.frame(
-      col = which(abs(va) < threshold & zuse > threshold),
-      value = zuse[which(abs(va) < threshold & zuse > threshold)]
+      col = which(abs(gva) < threshold & zuse > threshold),
+      value = zuse[which(abs(gva) < threshold & zuse > threshold)]
     )
-    col_entities <- c()
 
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No GVA = 0 with inputs > 0.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn GVA = 0 but inputs > 0}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        col_entity = mrio_entity(
-          s = hits$col[hit],
-          g = G
-        )
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{col_entity} total inputs: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$type <- "GVA = 0 but inputs > 0"
       hits$cell <- NA
       hits$row_entity <- NA
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
-      )
+      hits$col_entity <- mrio_entity(s = hits$col, g = G)
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:nrow(hits)) {
+        cli::cli_bullets(c(" " = "{hits$col_entity[hit]} total inputs: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
-    Sys.sleep(delay)
 
     # [*] GVA = 0, exports > 0 ----
 
-    e <- rowSums(E)
     hits <- data.frame(
-      col = which(abs(va) < threshold & e > threshold),
-      value = e[which(abs(va) < threshold & e > threshold)]
+      col = which(abs(gva) < threshold & e > threshold),
+      value = e[which(abs(gva) < threshold & e > threshold)]
     )
-    col_entities <- c()
 
     if (nrow(hits) == 0) {
       cli::cli_alert_success(" {.check No GVA = 0 with exports > 0.}")
       Sys.sleep(delay)
+
     } else {
       cli::cli_bullets(c("!" = " {.warn GVA = 0 but exports > 0}"))
       Sys.sleep(delay)
-      for (hit in 1:nrow(hits)) {
-        col_entity = mrio_entity(
-          s = hits$col[hit],
-          g = G
-        )
-        col_entities <- c(col_entities, col_entity)
-
-        cli::cli_bullets(c(" " = "{col_entity} total exports: {hits$value[hit]}"))
-        Sys.sleep(delay)
-      }
 
       hits$type <- "GVA = 0 but exports > 0"
       hits$cell <- NA
       hits$row_entity <- NA
-      hits$col_entity <- col_entities
-      report <- rbind(
-        report,
-        subset(hits, select = c("type", "cell", "row_entity", "col_entity", "value"))
-      )
+      hits$col_entity <- mrio_entity(s = hits$col, g = G)
+
+      if (nrow(hits) > limit) {
+        cli::cli_bullets(exceed_limit_message)
+        Sys.sleep(delay)
+      }
+      for (hit in 1:nrow(hits)) {
+        cli::cli_bullets(c(" " = "{hits$col_entity[hit]} total exports: {hits$value[hit]}"))
+        Sys.sleep(delay)
+      }
+      report <- rbind(report, subset(hits, select = report_cols))
     }
-    Sys.sleep(delay)
 
     if (nrow(report) > 0) {
       sheetname <- sub("\\.\\w+$", "", basename(file)) |> substr(1, 31)
@@ -667,10 +701,18 @@ check <- function(path, precision = 8, export = TRUE) {
 # Helper functions --------------------------------------------------------
 
 excelcol <- function(n) {
-  if (n < 1 | n %% 1 != 0) cli::cli_abort("`n` must be a positive integer.")
-  N <- length(LETTERS)
-  j <- n %/% N
-  if (j == 0) LETTERS[n] else paste0(Recall(j), LETTERS[n %% N])
+
+  N <- length(LETTERS); cell <- c()
+
+  for (m in n) {
+    j <- m %/% N
+    if (j == 0) {
+      cell <- c(cell, LETTERS[m])
+    } else {
+      cell <- c(cell, paste0(Recall(j), LETTERS[m %% N]))
+  }}
+
+  return(cell)
 }
 
 mrio_entity <- function(s, i = NULL, f = NULL, g) {
@@ -687,12 +729,12 @@ mrio_entity <- function(s, i = NULL, f = NULL, g) {
       dplyr::rename(ind = "mrio_ind62")
   }
 
-  entity <- dict_countries1$code[dict_countries1$ind == s]
+  entity <- c()
+  for (j in s) entity <- c(entity, dict_countries1$code[dict_countries1$ind == j])
   if (!is.null(i)) entity <- paste0(entity, "_", paste0("c", i))
   if (!is.null(f)) entity <- paste0(entity, "_", paste0("f", f))
+
   return(entity)
 }
 
-print_timestamp <- function() {
-  format(Sys.time(), "%Y-%m-%d %R")
-}
+print_timestamp <- function() format(Sys.time(), "%Y-%m-%d %R")
