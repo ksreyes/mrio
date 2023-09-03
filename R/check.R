@@ -105,7 +105,7 @@ check <- function(path, precision = 8, export = TRUE, limit = 10) {
       suppressMessages()
 
     N <- 35; f <- 5
-    nrow <- length(which(!is.na(mrio[, 1])))
+    nrow <- which(mrio[, 1] == "r69")[1]
     G <- (nrow - 8) / N
     mrio <- mrio[1:nrow, 2:(1 + G*N + G*f + 1)] |> as.matrix()
 
