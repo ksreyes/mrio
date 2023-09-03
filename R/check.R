@@ -102,7 +102,8 @@ check <- function(path, precision = 8, export = TRUE, limit = 10) {
         col_names = FALSE,
         progress = FALSE
       ) |>
-      suppressMessages()
+      suppressMessages() |>
+      suppressWarnings()
 
     N <- 35; f <- 5
     nrow <- which(mrio[, 1] == "r69")[1]
