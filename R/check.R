@@ -1,13 +1,11 @@
 #' Perform basic integrity checks on MRIO table
 #'
-#' @description
-#' Checks MRIO tables for anomalies. Optionally exports results in
+#' @description Checks MRIO tables for anomalies. Optionally exports results in
 #' an Excel file. Automatically detects MRIO version (62 vs 72 economies).
 #'
 #' List of checks performed:
 #' 1. Non-numeric cells.
-#' 1. Blank cells.
-#' 1. Negative inputs.
+#' 1. Blank cells. 1. Negative inputs.
 #' 1. Negative consumption items.
 #' 1. Negative gross value added (GVA).
 #' 1. Negative direct purchases abroad by residents.
@@ -27,6 +25,8 @@
 #'   values.
 #' @param export If `TRUE`, saves results in an Excel file in the same directory
 #'   as `path`.
+#' @param limit Number of flagged entries to print. Set to `Inf` to print all
+#'   entries (not recommended).
 #'
 #' @importFrom rlang .data
 #'
