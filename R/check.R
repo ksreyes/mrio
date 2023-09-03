@@ -5,7 +5,8 @@
 #'
 #' List of checks performed:
 #' 1. Non-numeric cells.
-#' 1. Blank cells. 1. Negative inputs.
+#' 1. Blank cells.
+#' 1. Negative inputs.
 #' 1. Negative consumption items.
 #' 1. Negative gross value added (GVA).
 #' 1. Negative direct purchases abroad by residents.
@@ -31,7 +32,7 @@
 #' @importFrom rlang .data
 #'
 #' @export
-check <- function(path, precision = 8, export = TRUE, limit = 10) {
+check <- function(path, precision = 10, export = TRUE, limit = 10) {
 
   # Set up
   savedir <- ifelse(file.info(path)$isdir, path, dirname(path))
@@ -467,7 +468,7 @@ check <- function(path, precision = 8, export = TRUE, limit = 10) {
     cli::cli_text("{.emph Aggregates have expected values?}")
     Sys.sleep(delay)
 
-    # [*] Negative sum of VA terms ----
+    # [*] Negative sum of GVA terms ----
 
     hits <- data.frame(
       col = which(vasum < -threshold),
@@ -475,14 +476,14 @@ check <- function(path, precision = 8, export = TRUE, limit = 10) {
     )
 
     if (nrow(hits) == 0) {
-      cli::cli_alert_success(" {.check No negative value added.}")
+      cli::cli_alert_success(" {.check No negative sum of GVA terms.}")
       Sys.sleep(delay)
 
     } else {
-      cli::cli_bullets(c("!" = " {.warn Negative value added}"))
+      cli::cli_bullets(c("!" = " {.warn Negative sum of GVA terms}"))
       Sys.sleep(delay)
 
-      hits$"type" <- "Negative sum of VA terms"
+      hits$"type" <- "Negative sum of GVA terms"
       hits$cell <- NA
       hits$row_entity <- NA
       hits$col_entity <- mrio_entity(

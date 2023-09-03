@@ -4,7 +4,7 @@
 \alias{check}
 \title{Perform basic integrity checks on MRIO table}
 \usage{
-check(path, precision = 8, export = TRUE, limit = 10)
+check(path, precision = 10, export = TRUE, limit = 10)
 }
 \arguments{
 \item{path}{Path to file or directory. Files must be in Excel and have "MRIO"
@@ -27,7 +27,8 @@ an Excel file. Automatically detects MRIO version (62 vs 72 economies).
 List of checks performed:
 \enumerate{
 \item Non-numeric cells.
-\item Blank cells. 1. Negative inputs.
+\item Blank cells.
+\item Negative inputs.
 \item Negative consumption items.
 \item Negative gross value added (GVA).
 \item Negative direct purchases abroad by residents.
