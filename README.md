@@ -10,7 +10,7 @@ Tools for working with the Asian Development Bank (ADB) [Multiregional Input-Out
 
 ### check
 
-`check(path, precision = 8, export = TRUE)`
+`check(path, precision = 8, export = TRUE, limit = 10)`
 
 Performs basic integrity checks on an MRIO Excel file or a directory of such files. 
 
