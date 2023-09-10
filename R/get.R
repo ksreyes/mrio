@@ -94,8 +94,8 @@ get_country_code <- function(key, unmatched = NA) {
 
   for (k in key) {
     if (is.na(as.numeric(k)) |> suppressWarnings()) {
-      match <- c(which(names == k), which(codes == k))
       k <- tolower(k)
+      match <- c(which(names == k), which(codes == k))
       if (length(match) == 0) {
         result <- c(result, unmatched)
       } else {
