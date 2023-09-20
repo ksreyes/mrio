@@ -1,7 +1,7 @@
 #' Countries dictionary
 #'
-#' Correspondence table of country names and codes. Note: the use of the term
-#' "country" here is a convenience and intends no judgment on the political
+#' Correspondence table of country names and codes. Note that the use of the
+#' term "country" here is a convenience and intends no judgment on the political
 #' status of the entities listed.
 #'
 #' @source

@@ -38,8 +38,8 @@ World Bank classification with the inclusion of Taipei,China.}
 dict_countries
 }
 \description{
-Correspondence table of country names and codes. Note: the use of the term
-"country" here is a convenience and intends no judgment on the political
+Correspondence table of country names and codes. Note that the use of the
+term "country" here is a convenience and intends no judgment on the political
 status of the entities listed.
 }
 \keyword{datasets}
