@@ -5,6 +5,9 @@
 \alias{get_country_name}
 \alias{get_country_ind}
 \alias{get_country_code}
+\alias{get_iso_num}
+\alias{get_iso_a2}
+\alias{get_iso_a3}
 \alias{get_sector_name}
 \alias{get_sector_shortname}
 \alias{get_sector_ind}
@@ -16,6 +19,12 @@ get_country_name(key, unmatched = NA)
 get_country_ind(key, unmatched = NA)
 
 get_country_code(key, unmatched = NA)
+
+get_iso_num(key, unmatched = NA)
+
+get_iso_a2(key, unmatched = NA)
+
+get_iso_a3(key, unmatched = NA)
 
 get_sector_name(key, unmatched = NA)
 
