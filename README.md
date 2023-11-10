@@ -14,7 +14,7 @@ Tools for working with the Asian Development Bank (ADB) [Multiregional Input-Out
 
 Performs basic integrity checks on an MRIO Excel file or a directory of such files. 
 
-### check
+### download_eurostat
 
 `download_eurostat(path, reorder_sheets = TRUE, starting_year = 1995)`
 
