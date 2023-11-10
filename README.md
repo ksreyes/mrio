@@ -14,11 +14,20 @@ Tools for working with the Asian Development Bank (ADB) [Multiregional Input-Out
 
 Performs basic integrity checks on an MRIO Excel file or a directory of such files. 
 
+### check
+
+`download_eurostat(path, reorder_sheets = TRUE, starting_year = 1995)`
+
+Accesses the Eurostat API using the `restatapi` package to extract macroeconomic data. Used in the control totals updating phase of the MRIO compilation process.
+
 ### get_*
 
 * `get_country_name(key, unmatched = NA)`
 * `get_country_ind(key, unmatched = NA)`
 * `get_country_code(key, unmatched = NA)`
+* `get_iso_num(key, unmatched = NA)`
+* `get_iso_a2(key, unmatched = NA)`
+* `get_iso_a3(key, unmatched = NA)`
 * `get_sector_name(key, unmatched = NA)`
 * `get_sector_shortname(key, unmatched = NA)`
 * `get_sector_ind(key, unmatched = NA)`
