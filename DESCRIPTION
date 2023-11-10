@@ -15,10 +15,14 @@ Depends:
     R (>= 2.10)
 Imports:
     dplyr,
+    stringr,
+    tidyr,
     readxl,
     openxlsx,
+    forcats,
     glue,
     cli,
-    rlang
+    rlang,
+    restatapi (>= 0.22.1)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
