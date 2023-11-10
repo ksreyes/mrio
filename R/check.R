@@ -52,7 +52,7 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
     textDecoration = "bold"
   )
 
-  reports = openxlsx::createWorkbook()
+  reports <- openxlsx::createWorkbook()
 
   # Preamble
   timestamp <- print_timestamp()
