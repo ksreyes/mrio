@@ -4,12 +4,12 @@
 \alias{download_eurostat}
 \title{Download Eurostat macro data}
 \usage{
-download_eurostat(path, reorder_sheets = TRUE, starting_year = 1995)
+download_eurostat(workbook, reorder_sheets = TRUE, starting_year = 1995)
 }
 \arguments{
-\item{path}{Path to file or directory. Files must be in Excel and file
-names must start with the uppercase three-letter country code. Function
-ignores all other files in the directory.}
+\item{workbook}{Control totals workbook or directory of workbooks. File names
+must start with the uppercase three-letter country code. All other files in
+the directory are ignored.}
 
 \item{reorder_sheets}{If \code{TRUE}, arranges the sheets of the workbook
 alphabetically upon saving.}
@@ -17,7 +17,11 @@ alphabetically upon saving.}
 \item{starting_year}{Earliest year of data to download.}
 }
 \description{
-Accesses the Eurostat API using the \code{restatapi} package to
-extract macroeconomic data. These are used in the control totals updating
-phase of the MRIO compilation process.
+Downloads macroeconomic data from Eurostat and saves them in a
+control totals workbook.
+}
+\details{
+Uses the \code{restatapi} package to access the Eurostat API. Downloaded
+data are saved in a series of sheets with name pattern "1. ES \if{html}{\out{<dataset
+code>}}". Sheets are created if they do not exist.
 }

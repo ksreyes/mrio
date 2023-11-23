@@ -1,18 +1,21 @@
 #' Download Eurostat macro data
 #'
-#' @description Accesses the Eurostat API using the `restatapi` package to
-#'   extract macroeconomic data. These are used in the control totals updating
-#'   phase of the MRIO compilation process.
+#' @description Downloads macroeconomic data from Eurostat and saves them in a
+#'   control totals workbook.
 #'
-#' @param path Path to file or directory. Files must be in Excel and file
-#'   names must start with the uppercase three-letter country code. Function
-#'   ignores all other files in the directory.
+#' @param workbook Control totals workbook or directory of workbooks. File names
+#'   must start with the uppercase three-letter country code. All other files in
+#'   the directory are ignored.
 #' @param reorder_sheets If `TRUE`, arranges the sheets of the workbook
 #'   alphabetically upon saving.
 #' @param starting_year Earliest year of data to download.
 #'
+#' @details Uses the `restatapi` package to access the Eurostat API. Downloaded
+#' data are saved in a series of sheets with name pattern "1. ES <dataset
+#' code>". Sheets are created if they do not exist.
+#'
 #' @export
-download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995) {
+download_eurostat <- function(workbook, reorder_sheets = TRUE, starting_year = 1995) {
 
   cli::cli_div(theme = list(span.header = list(color = "cyan")))
   headerstyle <- openxlsx::createStyle(fontColour = "white", fgFill = "#007DB7", textDecoration = "bold")
@@ -21,21 +24,22 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
   stem <- "1. ES"
 
   cli::cli_text("")
-  cli::cli_progress_message("Downloading Eurostat metadata...")
-  tables <- c("nama_10_gdp", "nama_10_a64", "namq_10_gdp", "namq_10_a10")
-  meta <- restatapi::get_eurostat_toc() |> dplyr::filter(code %in% tables)
-  cli::cli_progress_done()
+  cli::cli_text("Downloading Eurostat metadata...")
+  cli::cli_text("")
 
-  if (file.info(path)$isdir) {
-    files <- list.files(path, pattern = "^[A-Z]{3}.*(xls|xlsx)$")
+  tables <- c("nama_10_gdp", "nama_10_a64", "namq_10_gdp", "namq_10_a10")
+  meta <- restatapi::get_eurostat_toc() |> dplyr::filter(.data$code %in% tables)
+
+  if (file.info(workbook)$isdir) {
+    files <- list.files(workbook, pattern = "^[A-Z]{3}.*(xls|xlsx)$")
   } else {
-    files <- path
+    files <- workbook
   }
 
   for (file in files) {
 
-    filepath <- file.path(path, file)
-    wb <- openxlsx::loadWorkbook(filepath)
+    wb_path <- file.path(workbook, file)
+    wb <- openxlsx::loadWorkbook(wb_path)
     sheets <- openxlsx::sheets(wb)
 
     filecode <- stringr::str_extract(file, "[A-Z]{3}")
@@ -48,7 +52,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
 
     # nama_10_gdp -------------------------------------------------------------
 
-    meta1 <- subset(meta, code == tables[1])
+    meta1 <- subset(meta, .data$code == tables[1])
     sheetname1 <- glue::glue("{stem} {tables[1]}")
     if (!(sheetname1 %in% sheets)) {
       openxlsx::addWorksheet(wb, sheetname1, tabColour = "#BDD7EE", zoom = 80)
@@ -58,15 +62,15 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     df1 <- restatapi::get_eurostat_data(
         tables[1],
         filters = c(country, "CP_MNAC", "CLV15_MNAC"),
-        date_filter = starting_year:latest_year,
+        date_filter = .data$starting_year:.data$latest_year,
         label = TRUE
       ) |>
-      tidyr::pivot_wider(names_from = time, values_from = values) |>
-      dplyr::mutate(na_item = forcats::fct_expand(na_item, esdsd_nama_10_gdp$name)) |>
-      tidyr::complete(geo, na_item, unit) |>
-      dplyr::arrange(unit) |>
+      tidyr::pivot_wider(names_from = .data$time, values_from = .data$values) |>
+      dplyr::mutate(na_item = forcats::fct_expand(.data$na_item, esdsd_nama_10_gdp$name)) |>
+      tidyr::complete(.data$geo, .data$na_item, .data$unit) |>
+      dplyr::arrange(.data$unit) |>
       dplyr::right_join(esdsd_nama_10_gdp, by = c("na_item" = "name")) |>
-      dplyr::select(geo, code, na_item, unit, matches("[0-9]{4}"))
+      dplyr::select(.data$geo, .data$code, .data$na_item, .data$unit, tidyselect::matches("[0-9]{4}"))
 
     units <- paste(unique(df1$unit), collapse = "; ")
 
@@ -87,7 +91,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
 
     # nama_10_a64 -------------------------------------------------------------
 
-    meta2 <- subset(meta, code == tables[2])
+    meta2 <- subset(meta, .data$code == tables[2])
     sheetname2 <- glue::glue("{stem} {tables[2]}")
     if (!(sheetname2 %in% sheets)) {
       openxlsx::addWorksheet(wb, sheetname2, tabColour = "#BDD7EE", zoom = 80)
@@ -97,16 +101,16 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     df2 <- restatapi::get_eurostat_data(
         tables[2],
         filters = c(country, "CP_MNAC", "CLV15_MNAC", "B1G", "P1", "P2"),
-        date_filter = starting_year:latest_year,
+        date_filter = .data$starting_year:.data$latest_year,
         label = TRUE
       ) |>
-      tidyr::pivot_wider(names_from = time, values_from = values) |>
-      dplyr::mutate(nace_r2 = forcats::fct_expand(nace_r2, esdsd_nama_10_a64$name)) |>
-      tidyr::complete(geo, na_item, unit, nace_r2) |>
+      tidyr::pivot_wider(names_from = .data$time, values_from = .data$values) |>
+      dplyr::mutate(nace_r2 = forcats::fct_expand(.data$nace_r2, esdsd_nama_10_a64$name)) |>
+      tidyr::complete(.data$geo, .data$na_item, .data$unit, .data$nace_r2) |>
       dplyr::right_join(esdsd_nama_10_a64, by = c("nace_r2" = "name")) |>
-      dplyr::select(geo, na_item, unit, code, nace_r2, matches("[0-9]{4}")) |>
-      dplyr::group_by(na_item, unit) |>
-      dplyr::arrange(code, .by_group = TRUE) |>
+      dplyr::select(.data$geo, .data$na_item, .data$unit, .data$code, .data$nace_r2, tidyselect::matches("[0-9]{4}")) |>
+      dplyr::group_by(.data$na_item, .data$unit) |>
+      dplyr::arrange(.data$code, .by_group = TRUE) |>
       dplyr::ungroup()
 
     items <- paste(unique(df2$na_item), collapse = "; ")
@@ -130,7 +134,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
 
     # namq_10_gdp -------------------------------------------------------------
 
-    meta3 <- subset(meta, code == tables[3])
+    meta3 <- subset(meta, .data$code == tables[3])
     sheetname3 <- glue::glue("{stem} {tables[3]}")
     if (!(sheetname3 %in% sheets)) {
       openxlsx::addWorksheet(wb, sheetname3, tabColour = "#BDD7EE", zoom = 80)
@@ -140,15 +144,15 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     df3 <- restatapi::get_eurostat_data(
         tables[3],
         filters = c(country, "CP_MNAC", "CLV15_MNAC", "NSA"),
-        date_filter = starting_year:latest_year,
+        date_filter = .data$starting_year:.data$latest_year,
         label = TRUE
       ) |>
-      tidyr::pivot_wider(names_from = time, values_from = values) |>
-      dplyr::mutate(na_item = forcats::fct_expand(na_item, esdsd_namq_10_gdp$name)) |>
-      tidyr::complete(geo, na_item, unit, s_adj) |>
-      dplyr::arrange(unit) |>
+      tidyr::pivot_wider(names_from = .data$time, values_from = .data$values) |>
+      dplyr::mutate(na_item = forcats::fct_expand(.data$na_item, esdsd_namq_10_gdp$name)) |>
+      tidyr::complete(.data$geo, .data$na_item, .data$unit, .data$s_adj) |>
+      dplyr::arrange(.data$unit) |>
       dplyr::right_join(esdsd_nama_10_gdp, by = c("na_item" = "name")) |>
-      dplyr::select(geo, code, na_item, unit, s_adj, matches("[0-9]{4}-Q[0-9]{1}"))
+      dplyr::select(.data$geo, .data$code, .data$na_item, .data$unit, .data$s_adj, tidyselect::matches("[0-9]{4}-Q[0-9]{1}"))
 
     units <- paste(unique(df3$unit), collapse = "; ")
 
@@ -160,7 +164,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     writepair("Last updated", meta3$lastUpdate, 6, sheet = sheetname3, workbook = wb)
     writepair("Date extracted", latest_date, 7, sheet = sheetname3, workbook = wb)
 
-    df3 <- df3 |> dplyr::select(-s_adj)
+    df3 <- df3 |> dplyr::select(-.data$s_adj)
     openxlsx::writeData(
       wb, sheetname3, df3, startRow = 9,
       keepNA = TRUE, na.string = ":",
@@ -171,7 +175,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
 
     # namq_10_a10 -------------------------------------------------------------
 
-    meta4 <- subset(meta, code == tables[4])
+    meta4 <- subset(meta, .data$code == tables[4])
     sheetname4 <- glue::glue("{stem} {tables[4]}")
     if (!(sheetname4 %in% sheets)) {
       openxlsx::addWorksheet(wb, sheetname4, tabColour = "#BDD7EE", zoom = 80)
@@ -181,15 +185,15 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     df4 <- restatapi::get_eurostat_data(
         tables[4],
         filters = c(country, "CP_MNAC", "CLV15_MNAC", "NSA", "B1G"),
-        date_filter = starting_year:latest_year,
+        date_filter = .data$starting_year:.data$latest_year,
         label = TRUE
       ) |>
-      tidyr::pivot_wider(names_from = time, values_from = values) |>
-      dplyr::mutate(nace_r2 = forcats::fct_expand(nace_r2, esdsd_namq_10_a10$name)) |>
-      tidyr::complete(geo, na_item, unit, s_adj, nace_r2) |>
-      dplyr::arrange(unit) |>
+      tidyr::pivot_wider(names_from = .data$time, values_from = .data$values) |>
+      dplyr::mutate(nace_r2 = forcats::fct_expand(.data$nace_r2, esdsd_namq_10_a10$name)) |>
+      tidyr::complete(.data$geo, .data$na_item, .data$unit, .data$s_adj, .data$nace_r2) |>
+      dplyr::arrange(.data$unit) |>
       dplyr::right_join(esdsd_namq_10_a10, by = c("nace_r2" = "name")) |>
-      dplyr::select(geo, na_item, unit, s_adj, code, nace_r2, matches("[0-9]{4}-Q[0-9]{1}"))
+      dplyr::select(.data$geo, .data$na_item, .data$unit, .data$s_adj, .data$code, .data$nace_r2, tidyselect::matches("[0-9]{4}-Q[0-9]{1}"))
 
     items <- paste(unique(df4$na_item), collapse = "; ")
     units <- paste(unique(df4$unit), collapse = "; ")
@@ -203,7 +207,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     writepair("Last updated", meta4$lastUpdate, 7, sheet = sheetname4, workbook = wb)
     writepair("Date extracted", latest_date, 8, sheet = sheetname4, workbook = wb)
 
-    df4 <- df4 |> dplyr::select(-na_item, -s_adj)
+    df4 <- df4 |> dplyr::select(-.data$na_item, -.data$s_adj)
     openxlsx::writeData(
       wb, sheetname4, df4, startRow = 10,
       keepNA = TRUE, na.string = ":",
@@ -213,7 +217,7 @@ download_eurostat <- function(path, reorder_sheets = TRUE, starting_year = 1995)
     sheets <- openxlsx::sheets(wb)
 
     if (reorder_sheets) openxlsx::worksheetOrder(wb) <- order(sheets)
-    openxlsx::saveWorkbook(wb, filepath, overwrite = TRUE)
+    openxlsx::saveWorkbook(wb, wb_path, overwrite = TRUE)
 
     cli::cli_text('"{.header {file}}" successfully updated.')
     cli::cli_text("")
