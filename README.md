@@ -10,15 +10,25 @@ Tools for working with the Asian Development Bank (ADB) [Multiregional Input-Out
 
 ### check
 
-`check(path, precision = 10, export = TRUE, limit = 10)`
+`check(workbook, reorder_sheets = TRUE, starting_year = 1995)`
 
 Performs basic integrity checks on an MRIO Excel file or a directory of such files. 
+
+### sectorize_comtrade
+
+`sectorize_comtrade(path)`
+
+Aggregates raw product-level data from a UN Comtrade bulk download to the MRIO sectors.
 
 ### download_eurostat
 
 `download_eurostat(path, reorder_sheets = TRUE, starting_year = 1995)`
 
-Accesses the Eurostat API using the `restatapi` package to extract macroeconomic data. Used in the control totals updating phase of the MRIO compilation process.
+Downloads macroeconomic data from Eurostat and saves them in a control totals workbook.
+
+### pull_niot
+
+Pulls a national input-output table for a given year from the Multi-regional Input-Output database and saves it in a control totals workbook.
 
 ### get_*
 
