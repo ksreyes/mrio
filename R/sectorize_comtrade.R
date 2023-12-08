@@ -1,7 +1,7 @@
 #' Aggregate Comtrade to MRIO sectors
 #'
 #' @description Aggregates raw product-level data from a UN Comtrade bulk
-#'   download to the MRIO sectors.
+#'   download to the MRIO sectors and BEC5 end use categories.
 #'
 #' @param path File or directory of files of Comtrade bulk data.
 #'
@@ -13,16 +13,10 @@
 #' @export
 sectorize_comtrade <- function(path) {
 
-  headerstyle <- openxlsx::createStyle(
-      fgFill = "#E7E6E6",
-      textDecoration = "bold"
-    )
-  cli::cli_div(theme = list(
-      span.header = list(color = "cyan"),
-      span.check = list(color = "darkgreen"),
-      span.warn = list(color = "darkgoldenrod4"),
-      span.cell = list(color = "gray65")
-    ))
+  headerstyle <- openxlsx::createStyle(fgFill = "#E7E6E6",
+                                       textDecoration = "bold")
+  cli::cli_div(theme = list(span.header = list(color = "cyan"),
+                            span.check = list(color = "darkgreen")))
 
   savedir <- ifelse(file.info(path)$isdir, path, dirname(path))
   if (file.info(path)$isdir) {
@@ -33,9 +27,7 @@ sectorize_comtrade <- function(path) {
 
   br()
   cli::cli_text("Found the following files:")
-  for (file in files) {
-    cli::cli_bullets(c("*" = " {.header {file}}"))
-  }
+  for (file in files) cli::cli_bullets(c("*" = " {.header {file}}"))
   br()
 
   for (file in files) {
@@ -63,10 +55,17 @@ sectorize_comtrade <- function(path) {
 
     hscode <- hscodes$edition[hscodes$code == unique(df_cleaned$classificationCode)]
 
+    # Assume that unknown products (cmdCode 999999) are military weapons
+    hsbecsitc$BEC5[hsbecsitc$BEC5 == 8] <- "812020"
+
     df_sectorized <- df_cleaned |>
       dplyr::left_join(
-        hsbecsitc |> dplyr::select({{hscode}}, .data$HS02),
+        hsbecsitc |> dplyr::select({{hscode}}, .data$HS02, .data$BEC5),
         by = c("cmdCode" = hscode),
+        multiple = "any"
+      ) |>
+      dplyr::left_join(
+        hsbec |> dplyr::select(BEC5 = .data$BEC5Code1, .data$BEC5EndUse),
         multiple = "any"
       ) |>
       dplyr::left_join(hs02cpc, multiple = "any") |>
@@ -74,7 +73,7 @@ sectorize_comtrade <- function(path) {
       dplyr::left_join(isicmrio, multiple = "any") |>
       dplyr::summarise(
         primaryValue = sum(.data$primaryValue),
-        .by = c(.data$period, .data$reporterCode, .data$flowCode, .data$partnerCode, .data$MRIO)
+        .by = c(.data$period, .data$reporterCode, .data$flowCode, .data$partnerCode, .data$BEC5EndUse, .data$MRIO)
       ) |>
       suppressMessages()
 

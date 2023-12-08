@@ -11,7 +11,7 @@ sectorize_comtrade(path)
 }
 \description{
 Aggregates raw product-level data from a UN Comtrade bulk
-download to the MRIO sectors.
+download to the MRIO sectors and BEC5 end use categories.
 }
 \details{
 Each file must be a Comtrade bulk download of one country for one
