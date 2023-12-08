@@ -6,6 +6,13 @@ hsbecsitc <- readxl::read_excel(
     sheet = "HSBECSITC"
   )
 
+# BEC categories
+
+hsbec <- readxl::read_excel(
+    "../Automation Project/2021 MRIO-72 Bilaterals_XXX.xlsx",
+    sheet = "HS17BEC5"
+  )
+
 # HS02/CPC mapping
 
 hs02cpc <- readxl::read_excel(
@@ -46,7 +53,7 @@ hscodes <- tibble::tribble(
 
 sysdata_filenames <- load("R/sysdata.rda")
 save(
-    list = c(sysdata_filenames, "hsbecsitc", "hs02cpc", "cpcisic", "isicmrio", "hscodes"),
+    list = c(sysdata_filenames, "hsbecsitc", "hsbec", "hs02cpc", "cpcisic", "isicmrio", "hscodes"),
     file = "R/sysdata.rda",
     compress = "xz"
   )
