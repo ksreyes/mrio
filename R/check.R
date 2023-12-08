@@ -40,25 +40,21 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
   delay <- .1
   exceed_limit_message <- c(" " = " {.warn {nrow(hits)} detected, printing first {limit}:}")
   report_cols <- c("type", "cell", "row_entity", "col_entity", "value")
-  cli::cli_div(theme = list(
-    span.header = list(color = "cyan"),
-    span.check = list(color = "darkgreen"),
-    span.warn = list(color = "darkgoldenrod4"),
-    span.cell = list(color = "gray65")
-  ))
-  headerstyle <- openxlsx::createStyle(
-    fontColour = "white",
-    fgFill = "#007DB7",
-    textDecoration = "bold"
-  )
+  cli::cli_div(theme = list(span.header = list(color = "cyan"),
+                            span.check = list(color = "darkgreen"),
+                            span.warn = list(color = "darkgoldenrod4"),
+                            span.cell = list(color = "gray65")))
+  headerstyle <- openxlsx::createStyle(fontColour = "white",
+                                       fgFill = "#007DB7",
+                                       textDecoration = "bold")
 
   reports <- openxlsx::createWorkbook()
 
   # Preamble
   timestamp <- print_timestamp()
-  cli::cli_text("")
+  br()
   cli::cli_rule()
-  cli::cli_text("")
+  br()
   cli::cli_text("Checking started at {timestamp}.")
   Sys.sleep(delay)
   cli::cli_bullets(c("i" = " `precision = {precision}`: threshold for zero set at {threshold}."))
@@ -81,30 +77,25 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
 
   for (file in files) {
 
-    report <- data.frame(
-      type = c(),
-      cell = c(),
-      row_entity = c(),
-      col_entity = c(),
-      value = c()
-    )
+    report <- data.frame(type = c(),
+                         cell = c(),
+                         row_entity = c(),
+                         col_entity = c(),
+                         value = c())
 
     # Load MRIO and check if OK -----------------------------------------------
 
     if (file.info(path)$isdir) file <- file.path(path, file)
 
-    cli::cli_text("")
+    br()
     cli::cli_rule(left = "Checks on {.header {basename(file)}}")
     cli::cli_progress_message("Reading file...")
 
-    mrio <- readxl::read_excel(
-        file,
-        range = readxl::cell_limits(c(8, 4), c(NA, NA)),
-        col_names = FALSE,
-        progress = FALSE
-      ) |>
-      suppressMessages() |>
-      suppressWarnings()
+    mrio <- readxl::read_excel(file,
+                               range = readxl::cell_limits(c(8, 4), c(NA, NA)),
+                               col_names = FALSE,
+                               progress = FALSE) |>
+      suppressMessages() |> suppressWarnings()
 
     N <- 35; f <- 5
     nrow <- which(mrio[, 1] == "r69")[1]
@@ -149,7 +140,7 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
 
     # Cells -------------------------------------------------------------------
 
-    cli::cli_text("")
+    br()
     cli::cli_text("{.emph Cells have expected values?}")
     Sys.sleep(delay)
 
@@ -418,7 +409,7 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
 
     # Balanced table ----------------------------------------------------------
 
-    cli::cli_text("")
+    br()
     cli::cli_text("{.emph Table is balanced?}")
     Sys.sleep(delay)
 
@@ -464,7 +455,7 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
 
     # Aggregates --------------------------------------------------------------
 
-    cli::cli_text("")
+    br()
     cli::cli_text("{.emph Aggregates have expected values?}")
     Sys.sleep(delay)
 
@@ -679,23 +670,23 @@ check <- function(path, precision = 10, export = TRUE, limit = 10) {
     }
   }
 
-  cli::cli_text("")
+  br()
   cli::cli_rule("")
-  cli::cli_text("")
+  br()
   Sys.sleep(delay)
 
   # Save report in Excel file -----------------------------------------------
 
   if (export & length(openxlsx::sheets(reports)) == 0) {
     cli::cli_bullets(c("x" = ' No report saved..'))
-    cli::cli_text("")
+    br()
     Sys.sleep(delay)
   }
   if (export & length(openxlsx::sheets(reports)) > 0) {
     filename <- paste0("Report ", gsub(":", "", timestamp), ".xlsx")
     openxlsx::saveWorkbook(reports, file.path(savedir, filename), overwrite = TRUE)
     cli::cli_text('Report successfully saved at "{.header {savedir}}".')
-    cli::cli_text("")
+    br()
     Sys.sleep(delay)
   }
 }
@@ -740,3 +731,5 @@ mrio_entity <- function(s, i = NULL, f = NULL, g) {
 }
 
 print_timestamp <- function() format(Sys.time(), "%Y-%m-%d %R")
+
+br <- function() cli::cli_text("")

@@ -28,9 +28,9 @@ pull_niot <- function(workbook, source, year = NULL) {
 
   # Get workbooks with appropriate sheets and relevant years
 
-  cli::cli_text("")
+  br()
   cli::cli_text("Reading files...")
-  cli::cli_text("")
+  br()
 
   years <- c(); workbooks <- c()
 
@@ -40,10 +40,8 @@ pull_niot <- function(workbook, source, year = NULL) {
     wb_file <- openxlsx::loadWorkbook(wb_path) |> suppressWarnings()
     wb_file_sheets <- openxlsx::sheets(wb_file)
 
-    relevant_sheets <- regmatches(
-        wb_file_sheets,
-        regexpr("(5. MRIO 20)[0-9]{2}", wb_file_sheets)
-      )
+    relevant_sheets <- regmatches(wb_file_sheets,
+                                  regexpr("(5. MRIO 20)[0-9]{2}", wb_file_sheets))
 
     if (length(relevant_sheets) == 0) next
     workbooks <- c(workbooks, wb)
@@ -56,7 +54,7 @@ pull_niot <- function(workbook, source, year = NULL) {
 
   if (length(workbooks) == 0) {
     cli::cli_abort("No valid workbooks found.")
-    cli::cli_text("")
+    br()
   }
 
   cli::cli_text("The following valid workbooks were found:")
@@ -77,13 +75,11 @@ pull_niot <- function(workbook, source, year = NULL) {
   for (i in 1:length(mrios)) {
 
     cli::cli_text("Working on {year[i]}...")
-    cli::cli_text("")
+    br()
 
-    mrio <- readxl::read_excel(
-        file.path(source, mrios[i]),
-        range = readxl::cell_limits(c(6, 2), c(NA, NA)),
-        progress = FALSE
-      ) |>
+    mrio <- readxl::read_excel(file.path(source, mrios[i]),
+                               range = readxl::cell_limits(c(6, 2), c(NA, NA)),
+                               progress = FALSE) |>
       suppressMessages() |>
       suppressWarnings()
 
@@ -95,29 +91,26 @@ pull_niot <- function(workbook, source, year = NULL) {
       wb_j <- openxlsx::loadWorkbook(wb_path_j)
       sheet <- paste0("5. MRIO ", year[i])
 
-      openxlsx::writeData(
-        wb_j, sheet, niot[1:N, 4:(4 + N + f)],
-        startCol = 5, startRow = 7, colNames = FALSE
-      )
+      openxlsx::writeData(wb_j, sheet, niot[1:N, 4:(4 + N + f)],
+                          startCol = 5, startRow = 7, colNames = FALSE)
 
-      openxlsx::writeData(
-        wb_j, sheet, niot[(N + 3):(N + 4), 4:(4 + N + f)],
-        startCol = 5, startRow = 44, colNames = FALSE
-      )
+      openxlsx::writeData(wb_j, sheet, niot[(N + 3):(N + 4), 4:(4 + N + f)],
+                          startCol = 5, startRow = 44, colNames = FALSE)
 
-      openxlsx::writeData(
-        wb_j, sheet, niot[(N + 6):(N + 11), 4:(4 + N + f)],
-        startCol = 5, startRow = 47, colNames = FALSE
-      )
+      openxlsx::writeData(wb_j, sheet, niot[(N + 6):(N + 11), 4:(4 + N + f)],
+                          startCol = 5, startRow = 47, colNames = FALSE)
 
       openxlsx::saveWorkbook(wb_j, wb_path_j, overwrite = TRUE)
-    }}
+    }
+  }
 
   cli::cli_text("All tasks done!")
-  cli::cli_text("")
+  br()
 }
 
 # Helper functions --------------------------------------------------------
+
+br <- function() cli::cli_text("")
 
 extract_niot <- function(mrio_source, country_code) {
 
@@ -131,15 +124,13 @@ extract_niot <- function(mrio_source, country_code) {
   niot1 <- dplyr::mutate(niot1, dplyr::across(tidyselect::matches("[cF][0-9]+"), as.numeric))
 
   # Get domestic use matrix
-  domestic <- subset(niot1, .data$s == country_code)
+  domestic <- niot1[niot1$s == country_code, ]
   domestic <- dplyr::bind_rows(
-    domestic,
-      cbind(
-        desc = "TOTAL DOMESTIC AT BASIC PRICE",
-        s = "ToT",
-        i = "D",
-        dplyr::summarise(domestic, dplyr::across(dplyr::matches("[cF][0-9]+"), sum))
-      ))
+      domestic,
+      cbind(desc = "TOTAL DOMESTIC AT BASIC PRICE",
+            s = "ToT",
+            i = "D",
+            dplyr::summarise(domestic, dplyr::across(dplyr::matches("[cF][0-9]+"), sum))))
 
   # Imports
   imports <- niot1 |>
@@ -149,32 +140,27 @@ extract_niot <- function(mrio_source, country_code) {
     dplyr::mutate(desc = c("GOODS", "SERVICES"), s = "M", i = c("G", "S")) |>
     suppressMessages()
   imports <- dplyr::bind_rows(
-      cbind(
-        desc = "IMPORTS OF GOODS AND SERVICES, FOB", s = "ToT", i = "M",
-        dplyr::summarise(imports, dplyr::across(tidyselect::matches("[cF][0-9]+"), sum))
-      ),
-      imports
-    ) |>
+      cbind(desc = "IMPORTS OF GOODS AND SERVICES, FOB",
+            s = "ToT",
+            i = "M",
+            dplyr::summarise(imports, dplyr::across(tidyselect::matches("[cF][0-9]+"), sum))),
+      imports) |>
     dplyr::select(.data$desc, .data$s, .data$i, tidyselect::matches("[cF][0-9]+"))
 
   # Value added and totals
-  gva <- niot1 |>
-    subset((is.na(.data$s) | .data$s == "ToT") & !is.na(.data$i)) |>
-    dplyr::mutate(
+  gva <- niot1[((is.na(niot1$s) | niot1$s == "ToT") & !is.na(niot1$i)), ]
+  gva <- dplyr::mutate(gva,
       s = "ToT",
-      desc = dplyr::case_when(
-        .data$desc == "Intermediate input total" ~ "TOTAL AT BASIC PRICE",
-        .data$desc == "TOTAL" ~ "TOTAL OUTPUT",
-        .default = .data$desc
-      ))
+      desc = dplyr::case_when(.data$desc == "Intermediate input total" ~ "TOTAL AT BASIC PRICE",
+                              .data$desc == "TOTAL" ~ "TOTAL OUTPUT",
+                              .default = .data$desc))
 
   # Exports
-  exports <- mrio_source |>
-    dplyr::select(.data$`...1`, .data$`...2`, .data$`...3`, !tidyselect::starts_with(country_code))
+  exports <- dplyr::select(mrio_source, .data$`...1`, .data$`...2`, .data$`...3`, !tidyselect::starts_with(country_code))
   colnames(exports)[1:3] <- c("desc", "s", "i")
   exports <- exports[-1, -ncol(exports)]
+  exports <- exports[exports$s == country_code, ]
   exports <- exports |>
-    subset(.data$s == country_code) |>
     dplyr::mutate(dplyr::across(tidyselect::matches("[A-Za-z]{3}...[0-9]+"), as.numeric)) |>
     dplyr::rowwise(.data$desc, .data$s, .data$i) |>
     dplyr::summarise(X = sum(dplyr::c_across(tidyselect::matches("[A-Za-z]{3}...[0-9]+")))) |>
