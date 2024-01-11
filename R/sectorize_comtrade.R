@@ -44,7 +44,7 @@ sectorize_comtrade <- function(path) {
         classificationCode,
         cmdCode,
         primaryValue
-      FROM read_csv_auto('{file.path(savedir, file)}')
+      FROM read_csv_auto('{file.path(savedir, file)}', all_varchar=1)
       WHERE partnerCode <> 0
         AND partner2Code = 0
         AND (flowCode = 'X' OR flowCode = 'M')
@@ -71,6 +71,12 @@ sectorize_comtrade <- function(path) {
       dplyr::left_join(hs02cpc, multiple = "any") |>
       dplyr::left_join(cpcisic, multiple = "any") |>
       dplyr::left_join(isicmrio, multiple = "any") |>
+      dplyr::mutate(
+        period = as.numeric(period),
+        reporterCode = as.numeric(reporterCode),
+        partnerCode = as.numeric(partnerCode),
+        primaryValue = as.numeric(primaryValue)
+      ) |>
       dplyr::summarise(
         primaryValue = sum(.data$primaryValue),
         .by = c(.data$period, .data$reporterCode, .data$flowCode, .data$partnerCode, .data$BEC5EndUse, .data$MRIO)
