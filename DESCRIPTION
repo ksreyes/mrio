@@ -1,7 +1,7 @@
 Package: mrio
 Type: Package
 Title: ADB MRIO Tools
-Version: 0.4.1
+Version: 0.4.2
 Authors@R: person("Kenneth Anthony Luigi Susmerano", "Reyes", 
     email = "kenneth.rejes@gmail.com", role = c("aut", "cre"))
 Description: Tools for working with the Asian Development Bank (ADB) 
